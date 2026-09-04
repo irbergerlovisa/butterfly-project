@@ -62,6 +62,13 @@ LAT_BANDS = [
     (60.5, 90, "North"),
 ]
 
+# Colors used for each species on the map (any matplotlib color works: hex
+# codes like "#d62728", or names like "crimson", "steelblue", etc.)
+SPECIES_COLORS = {
+    "Rovfjäril": "#d62728",   # red
+    "Rapsfjäril": "#2ca02c",  # green
+}
+
 MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -191,7 +198,18 @@ def get_sweden_outline():
     return gpd.read_file(SWEDEN_GEOJSON_PATH)
 
 
-def build_density_map(dfs_by_species, outfile, cell_size=0.4):
+MARKER_BASE_SIZE = 15   # base marker area (points^2) even for a count of 1
+MARKER_SCALE = 6        # additional area per record in the grid cell
+
+
+def marker_size(count):
+    """Marker area for a given record count -- used both for plotting and
+    for building the matching size legend, so they always stay in sync."""
+    return MARKER_BASE_SIZE + count * MARKER_SCALE
+
+
+def build_density_map(dfs_by_species, outfile, cell_size=0.4,
+                       size_legend_counts=(1, 25, 50, 100)):
     """
     Aggregates points into a grid before plotting -- with thousands of raw
     points the map becomes unreadable. cell_size is in degrees (0.4 degrees
@@ -199,10 +217,13 @@ def build_density_map(dfs_by_species, outfile, cell_size=0.4):
     Saves a static PNG.
     """
     sweden = get_sweden_outline()
-    palette = ["#d62728", "#2ca02c", "#1f77b4", "#9467bd", "#ff7f0e"]
-    # Fix each species' color by its original (input dict) order, so colors
-    # stay consistent no matter which species has more records this run.
-    color_map = {sp: palette[i % len(palette)] for i, sp in enumerate(dfs_by_species)}
+    fallback_palette = ["#1f77b4", "#9467bd", "#ff7f0e", "#8c564b"]
+    # Colors come from SPECIES_COLORS at the top of this file; any species
+    # not listed there falls back to the palette above, cycled by order.
+    color_map = {
+        sp: SPECIES_COLORS.get(sp, fallback_palette[i % len(fallback_palette)])
+        for i, sp in enumerate(dfs_by_species)
+    }
 
     fig, ax = plt.subplots(figsize=(6, 9))
     sweden.plot(ax=ax, color="#f0f0f0", edgecolor="#888888", linewidth=0.8)
@@ -222,11 +243,9 @@ def build_density_map(dfs_by_species, outfile, cell_size=0.4):
             .size()
             .reset_index(name="count")
         )
-        # marker area (not radius) scales with count so size is a fair visual cue
-        sizes = 15 + grid["count"] * 6
         ax.scatter(
             grid["glon"], grid["glat"],
-            s=sizes, color=color, alpha=0.55,
+            s=marker_size(grid["count"]), color=color, alpha=0.55,
             edgecolor="white", linewidth=0.4,
             label=species,
         )
@@ -235,7 +254,28 @@ def build_density_map(dfs_by_species, outfile, cell_size=0.4):
     ax.set_ylim(sweden.total_bounds[1] - 0.5, sweden.total_bounds[3] + 0.5)
     ax.set_axis_off()
     ax.set_title("Observation density")
-    ax.legend(loc="lower left", frameon=False)
+
+    # Species (color) legend
+    species_handles = [
+    plt.scatter([], [], s=180, color=color_map[sp], alpha=0.55,
+                edgecolor="white", linewidth=0.4, label=sp)
+    for sp in color_map
+]
+    species_legend = ax.legend(handles=species_handles, loc="center right",
+                            frameon=False, title="Species")
+    ax.add_artist(species_legend)  # so the size legend below doesn't replace it
+
+    # Size legend: grey proxy dots at a few reference counts, using the same
+    # marker_size() formula as the real data so it's an honest key.
+    size_handles = [
+        plt.scatter([], [], s=marker_size(c), color="grey", alpha=0.55,
+                    edgecolor="white", linewidth=0.4,
+                    label=f"{c} record" if c == 1 else f"{c} records")
+        for c in size_legend_counts
+    ]
+    ax.legend(handles=size_handles, loc="lower right", frameon=False,
+              title="Sightings per cell", labelspacing=1.4, borderpad=1.2)
+
     plt.tight_layout()
     plt.savefig(outfile, dpi=180)
     plt.close()
