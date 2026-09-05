@@ -62,8 +62,8 @@ def computeEmpiricalDensity(inputPath):
 
 #another idea: scatter plot with geographical positions (bigger dots reprensent more sightings) and colour them according to specific (climate?) zones
 
-empiricalDensityRovfjäril = computeEmpiricalDensity("./butterfly.csv")
-empricalDensityRapsfjäril = computeEmpiricalDensity("./raps.csv")
+empiricalDensityRovfjäril = computeEmpiricalDensity("./tryrov25.csv")
+empricalDensityRapsfjäril = computeEmpiricalDensity("./tryraps25.csv")
 
 plt.plot(empiricalDensityRovfjäril)
 plt.plot(empricalDensityRapsfjäril)
