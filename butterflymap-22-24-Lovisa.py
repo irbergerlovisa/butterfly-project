@@ -36,8 +36,8 @@ import geopandas as gpd
 # ---------------------------------------------------------------------------
 
 SPECIES_FILES = {
-    "Rovfjäril": "Raps22To24.csv",
-    "Rapsfjäril": "Rov22To24.csv",
+    "Rovfjäril": "Rov22To24.csv",
+    "Rapsfjäril": "Raps22To24.csv",
 }
 
 # Artportalen exports give coordinates in "Ost" (easting) / "Nord" (northing)
@@ -223,7 +223,7 @@ def marker_size(count):
 
 
 def build_density_map(dfs_by_species, outfile, cell_size=0.4,
-                       size_legend_counts=(1, 25, 50, 100)):
+                       size_legend_counts=(1, 50, 200, 400)):
     """
     Aggregates points into a grid before plotting -- with thousands of raw
     points the map becomes unreadable. cell_size is in degrees (0.4 degrees
@@ -287,8 +287,8 @@ def build_density_map(dfs_by_species, outfile, cell_size=0.4,
                     label=f"{c} record" if c == 1 else f"{c} records")
         for c in size_legend_counts
     ]
-    ax.legend(handles=size_handles, loc="lower right", frameon=False,
-              title="Sightings per cell", labelspacing=1.4, borderpad=1.2)
+    ax.legend(handles=size_handles, loc="upper left", frameon=False,
+              title="Sightings per cell", labelspacing=3.2, borderpad=0.8)
 
     plt.tight_layout()
     plt.savefig(outfile, dpi=180)
