@@ -36,8 +36,8 @@ import geopandas as gpd
 # ---------------------------------------------------------------------------
 
 SPECIES_FILES = {
-    "Rovfjäril": "rovfjäril25.csv",
-    "Rapsfjäril": "rapsfjäril2025.csv",
+    "Rovfjäril": "tryrov25.csv",
+    "Rapsfjäril": "tryraps25.csv",
 }
 
 # Artportalen exports give coordinates in "Ost" (easting) / "Nord" (northing)
@@ -78,7 +78,8 @@ MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 def load_species(path):
     """Read one Artportalen CSV export and do basic cleaning."""
-    df = pd.read_csv(path, encoding="utf-8")
+   # df = pd.read_csv(path, encoding="utf-8")
+    df = pd.read_csv(path, sep="\t", encoding="utf-8-sig")
 
     # Defensive: if multiple exports were concatenated into one file, or the
     # file was re-saved in Excel, the header row sometimes ends up repeated
@@ -94,15 +95,28 @@ def load_species(path):
         print(f"{path}: dropping {bad_dates.sum()} row(s) with unparseable dates")
         df = df[~bad_dates]
 
-    df["month"] = df["Startdatum"].dt.month
-    df["Ost"] = pd.to_numeric(df["Ost"], errors="coerce")
-    df["Nord"] = pd.to_numeric(df["Nord"], errors="coerce")
-    df = df.dropna(subset=["Ost", "Nord"])
+    df["month"] = df["Startdatum"].dt.month   
+
+
+    if "WGS84 decimal (lat)" in df.columns:
+        # SLU Artdatabanken export -- lat/lon already provided, no projection needed
+        df["lat"] = pd.to_numeric(df["WGS84 decimal (lat)"], errors="coerce")
+        df["lon"] = pd.to_numeric(df["WGS84 decimal (lon)"], errors="coerce")
+    elif "Ost" in df.columns and "Nord" in df.columns:
+        # Older Artportalen export -- needs projection, handled later in add_latlon
+        df["Ost"] = pd.to_numeric(df["Ost"], errors="coerce")
+        df["Nord"] = pd.to_numeric(df["Nord"], errors="coerce")
+    else:
+        raise ValueError(f"{path}: no recognizable coordinate columns found")
+
+    df = df.dropna(subset=["lat", "lon"] if "lat" in df.columns else ["Ost", "Nord"])
     return df
 
 
 def add_latlon(df, source_crs=SOURCE_CRS):
-    """Convert Ost/Nord to standard WGS84 latitude/longitude for mapping."""
+    """Convert Ost/Nord to WGS84 lat/lon -- skipped if lat/lon already exist."""
+    if "lat" in df.columns and "lon" in df.columns:
+        return df  # SLU export already had WGS84 coordinates
     transformer = Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
     lon, lat = transformer.transform(df["Ost"].values, df["Nord"].values)
     df = df.copy()
@@ -300,7 +314,7 @@ def main():
         plot_latitude_bands(species, band_shares, f"{species}_latitude_bands.png")
 
     plot_phenology_comparison(shares, "phenology_comparison.png")
-    build_density_map(dfs, "observation_map.png")
+    build_density_map(dfs, "observation_map_25.png")
 
     print("Done. Files written:")
     print(" - phenology_comparison.png")
