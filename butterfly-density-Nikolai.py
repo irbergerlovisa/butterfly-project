@@ -42,12 +42,19 @@ def computeObservationsPerMonth(monthArray, observationArray):
         observationsPerMonth[int(monthArray[i]) - 1] += observationArray[i]
     return observationsPerMonth
 
+def computeObservationsPerMonth(monthArray):
+    observationsPerMonth = np.zeros(12)
+    for i in monthArray:
+        observationsPerMonth[int(i) - 1] += 1
+    return observationsPerMonth
+
 def computeEmpiricalDensity(inputPath):
-    df = pd.read_csv(inputPath)
+    df = pd.read_csv(inputPath, sep="\t", encoding="utf-8-sig")
     x = extractMonth(df["Startdatum"])
-    y = observationToInt(df["Antal"])
-    totalObservation = totalObservationCounter(df["Antal"])
-    observationsPerMonth = computeObservationsPerMonth(x, y)
+    #y = observationToInt(df["Antal individer"])
+    #totalObservation = totalObservationCounter(df["Antal individer"])
+    totalObservation = len(x)
+    observationsPerMonth = computeObservationsPerMonth(x)
     empiricalDensity = observationsPerMonth/totalObservation
     return empiricalDensity
 
@@ -62,12 +69,14 @@ def computeEmpiricalDensity(inputPath):
 
 #another idea: scatter plot with geographical positions (bigger dots reprensent more sightings) and colour them according to specific (climate?) zones
 
-empiricalDensityRovfjäril = computeEmpiricalDensity("./tryrov25.csv")
-empricalDensityRapsfjäril = computeEmpiricalDensity("./tryraps25.csv")
+empiricalDensityRovfjäril = computeEmpiricalDensity("./rov-2010-2021.csv")
+empricalDensityRapsfjäril = computeEmpiricalDensity("./raps-2010-2021.csv")
 
-plt.plot(empiricalDensityRovfjäril)
-plt.plot(empricalDensityRapsfjäril)
+year = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+plt.plot(year, empiricalDensityRovfjäril, label = "rovfjäril")
+plt.plot(year, empricalDensityRapsfjäril, label = "rapsfjäril")
 
+plt.legend()
 #scatter plot showing the sightings on the 'map'
 #plt.scatter(df["Ost"], df["Nord"])
 
